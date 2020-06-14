@@ -1,0 +1,202 @@
+---
+title: "Times HR/BB above Season Average"
+author: "Alfredo Nasiff"
+date: "September 13, 2019"
+output:
+  pdf_document: default
+---
+```{r global_options, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r echo=FALSE}
+library(Lahman)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(ggrepel)
+library(knitr)
+```
+
+\newpage
+
+```{r echo=FALSE}
+
+```
+
+# Introduction
+
+The barrage of Home runs this 2019 MLB season has produced a stratospheric number of records broken. Each year has its own peculiarities, though not as remarkable as this 2019, when even the MLB was prompted to admit that some changes were made to the ball. If we look at the HR/AB mean per season we would see the differences from one year to another that, independently of the many causes, must be taken into consideration by statisticians when drawing comparisons among sluggers from different decades.
+
+## Dataset
+
+Using the Batting table of the Lahman Database from R programming language:
+
+```{r}
+
+HR_Average_Season <- Batting %>%
+  select(playerID, yearID, AB, HR) %>%
+  group_by(yearID) %>%
+  mutate(HR_Ave = HR/AB,
+         HR_Sea_Ave = sum(HR)/sum(AB),
+         HR_Sea_Ave_Rate = HR_Ave / HR_Sea_Ave)
+
+season_avg <- HR_Average_Season %>% 
+  select(yearID, HR_Sea_Ave) %>%
+  group_by(yearID) %>%
+  ggplot(aes(yearID, HR_Sea_Ave)) +
+  geom_line() + geom_point() + theme_economist() +
+  xlab("Season") + ylab("HR/AB Season Mean") + ggtitle("HR/AB mean per Season")
+
+plot(season_avg)
+```
+
+The trend indicates that nowadays is easier to hit Home runs than in the beginning of MLB history. We can speculate that if Babe Ruth would have played in modern times the total of his Home runs would have been higher, but we will never know that. Nevertheless, comparisons can be made among players from different times, weighing in their performances against the rest of the players of each Season played, meaning dividing the individual performance against the Season mean of the parameter we are studying. The purpose of this paper is to make the comparison of the greatest Home run sluggers of all times against the mean of each season played by them.
+
+# Analysis and Results
+
+We begin by presenting the case of Babe Ruth as an example. The following graph shows HR/AB by year with three lines drawn, one represents Babe Ruth's index, another one represents the mean of the Season and the last one the Rate, which is [Babe Ruth (HR/AB)]/ [Season (HR/AB)]. In 1920 Babe Ruth HR/AB index was 0.118, the Season mean was 0.007, therefore he had a frequency of HR/AB 15.8 times above average (the Rate).
+
+```{r}
+
+HR_Ave_Sea_BabeRu01 <- HR_Average_Season %>%
+  filter(playerID == "ruthba01")
+
+# The chart
+previous <- HR_Ave_Sea_BabeRu01 %>%
+  ggplot(aes(x = yearID)) +
+  geom_line(aes(y = HR_Ave, color = 'HR_Ave'), size = 1) +
+  geom_line(aes(y = HR_Sea_Ave, color = 'HR_Sea_Ave'), size = 1) +
+  geom_line(aes(y = HR_Sea_Ave_Rate, color = 'HR_Sea_Ave_Rate'), size = 1) +
+  geom_point(aes(y = HR_Ave, color = 'HR_Ave'), size = 1.5) +
+  geom_point(aes(y = HR_Sea_Ave, color = 'HR_Sea_Ave'), size = 1.5) +
+  geom_point(aes(y = HR_Sea_Ave_Rate, color = 'HR_Sea_Ave_Rate'), size = 1.5) +
+  geom_text(aes(y = HR_Ave, label = ifelse(yearID == '1920', round(HR_Ave,3), '')),
+            nudge_y = 0.2) +
+  geom_text(aes(y = HR_Sea_Ave, label = ifelse(yearID == '1920', round(HR_Sea_Ave,3),'')),
+            nudge_y = -0.2) +
+  geom_text(aes(y = HR_Sea_Ave_Rate, label = ifelse(yearID == '1920',
+                                                    round(HR_Sea_Ave_Rate,1), '')),
+            nudge_y = 0.2) +
+  theme_economist() +  scale_y_log10() +
+  xlab("year") + ylab("HR Rate") + ggtitle("Babe Ruth")
+
+plot(previous)
+```
+
+Adding up the Rate index accumulated by Babe Ruth along his entire career will make a total of 157.2 times above Seasons mean:
+
+```{r}
+
+final <- HR_Ave_Sea_BabeRu01 %>%
+  ggplot(aes(x = yearID, y = HR_Sea_Ave_Rate, label = round(HR_Sea_Ave_Rate,1))) +
+  geom_line() +
+  geom_point() +
+  theme_economist() +
+  xlab("year") + ylab("HR Rate") + ggtitle("Babe Ruth") +
+  annotate('text', x = 1930, y = 14, label = 'sum = 157.2', color = 'blue') +
+  geom_text_repel()
+
+plot(final)
+```
+
+How does this compare with the other players listed among the top HR sluggers, the following table shows it in descending order by number of HR:
+
+```{r}
+
+Best_HR <- HR_Average_Season %>%
+  group_by(playerID) %>%
+  summarise(AB = sum(AB),
+            HR = sum(HR),
+            HRperAB_Mean = round(sum(HR_Sea_Ave_Rate),digits = 1))%>%
+  filter(AB>2999)
+
+Master_PlayerName <- Master[,c("playerID","nameFirst","nameLast","debut","finalGame",
+                               "weight","height")]
+
+Merge_Tables <- merge(Best_HR,Master_PlayerName,by = "playerID")%>%
+  mutate(Name = paste(nameFirst, nameLast, sep = " "),
+         Years = paste(substr(debut,0,4),substr(finalGame,0,4),sep = "-")) %>%
+  select(Name, Years,AB,HR, HRperAB_Mean)%>%
+  arrange(-HR)
+
+kable(Merge_Tables[1:42,])
+```
+
+At first glance one figure jumps out from the table: Babe Ruth "(HR/AB) / Season (HR/AB)" more than double the next player in the list.
+
+If we look carefully, will see that in recent years it is tougher for players to excel above the mean, in fact, the only two active players on the list are doing very badly in the Index, which can be explained by the rise in the mean, trend that in turn has multifactorial causes. Among them we have the hypothesis that these days players hit more Home runs thanks to the rise in competitiveness due to the larger number of players, Teams, Leagues and Training Camps, also the advancements made in the technology applied to enhance performance plays a major role.
+
+Can we measure these factors like competitiveness and enhanced performance? The proposition is to use the weight and height of the players as a expression of how these factors have improved their pysical traits and therefore quantify how has this affected the media of HR per Season.
+
+It is proposed to calculate the "Strength" of players adding both their height and weight, reasoning that the taller and corpulent the player the more prepared and competitive is. Plotting the mean of each season, the graph looks like this:
+
+
+```{r echo=FALSE}
+Merge_Tables_2 <- merge(Best_HR,Master_PlayerName,by = "playerID")%>%
+  mutate(Name = paste(nameFirst, nameLast, sep = " "),
+         Strength = weight + height,
+         Debut = substr(debut,0,4),
+         FinalYear = substr(finalGame,0,4)) %>%
+  select(Name, Debut, FinalYear, AB, HR, Strength, HRperAB_Mean)%>%
+  arrange(-HR)
+
+Merge_Tables_3 <- merge(HR_Average_Season,Master_PlayerName,by = "playerID")%>%
+  group_by(yearID) %>%
+  mutate(Name = paste(nameFirst, nameLast, sep = " "),
+         Years = paste(substr(debut,0,4),substr(finalGame,0,4),sep = "-"),
+         Strength = weight + height) %>%
+  select(Name,playerID,yearID,AB,HR,Strength,HR_Ave,HR_Sea_Ave,HR_Sea_Ave_Rate)
+
+Merge_Tables_4.0 <- na.omit(Merge_Tables_3) %>%
+  group_by(yearID) %>%
+  mutate(Strength_Sea_Ave = sum(Strength/n()),
+         Strength_Sea_Ave_Rate = Strength / Strength_Sea_Ave,
+         HR_Rate_vs_Strength_Rate = HR_Sea_Ave_Rate/Strength_Sea_Ave_Rate)
+
+strength <- Merge_Tables_4.0 %>%
+  select(yearID,Strength_Sea_Ave) %>%
+  ggplot(aes(yearID, Strength_Sea_Ave)) +
+  geom_line() + geom_point() + theme_economist() +
+  xlab("Season") + ylab("Height(in) + Weight(lbs)") + ggtitle("Strength mean per Season")
+
+plot(strength)
+```
+
+It is effectively seen that in recent times the players are stronger. In 1920 the Strength mean was 243.2 while Babe's Strength was 289, taking over 45 points of advantage. In 2011, the year Mike Trout debuted with a Strength of 309, the mean topped the all-time list with 285, a meager 24 points below.
+
+Recalculating the "HRperAB_Mean" Rate dividing it by the "Strength_Mean" resulting in "HR_Strength", shows the difference in "HR_Strength_diff":
+
+```{r}
+Merge_Tables_4.1 <- Merge_Tables_4.0 %>%
+  group_by(playerID) %>%
+  summarise(AB = sum(AB),
+            HR = sum(HR),
+            HRperAB_Mean = round(sum(HR_Sea_Ave_Rate),digits = 1),
+            Strength_Mean = round(sum(Strength_Sea_Ave_Rate),digits = 1),
+            HR_Strength = round(sum(HR_Rate_vs_Strength_Rate),
+                                                 digits = 1))%>%
+  filter(AB>2999)
+
+Merge_Tables_5 <- merge(Merge_Tables_4.1,Master_PlayerName,by = 'playerID') %>%
+  mutate(Name = paste(nameFirst, nameLast, sep = " "),
+         Years = paste(substr(debut,0,4),substr(finalGame,0,4),sep = "-"),
+         HR_Strength_diff = HR_Strength - 
+           HRperAB_Mean) %>%
+  select(Name,Years,AB,HR,HRperAB_Mean,Strength_Mean,HR_Strength,
+         HR_Strength_diff) %>%
+  arrange(-HR)
+
+kable(Merge_Tables_5[1:42,])
+```
+
+The largest differences were accounted by Babe Ruth (-24) who still almost double his closest tracker (Mel Ott, who displaced Jimmie Foxx of the second place thanks to his low 239 of Strength) and Sammy Sosa (+5). So, the physical traits of Babe Ruth (74 in + 215 lbs = 289) impacted negatively in his "Times HR/AB over Season mean", as the other players of his time were in physical disadvantage with him.
+
+\newpage
+
+# Conclusions
+
+Babe Ruth, despite this later skirmish using the Strength statistic, seems to be once again, immovable as the Greatest Player of All-Time.
+Big names show up topping the list of the “Times HR_Strength”: 1-Babe Ruth; 2-Mel Ott; 3-Jimmie Foxx; 4-Barry Bonds; 5-Ted Williams; 6-Hank Aaron; 7-Lou Gehrig; 8-Willie Mays; 9-Frank Robinson; 10-Willie McCovey; 11-Harmon Killebrew. Make your own judgment.
